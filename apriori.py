@@ -116,6 +116,13 @@ def generate_candidates(itemsets, k):
         for j in range(i + 1, len(itemsets)):
             new_itemsets.append(itemsets[i][0] + itemsets[j][0])
 
+    # remove duplicate elements in each itemset and itemsets that exceed size k + 1
+    new_clean_itemsets = []
+    for itemset in new_itemsets:
+        clean_itemset = []
+        [clean_itemset.append(x) for x in itemset if x not in clean_itemset]
+        if len(clean_itemset) == k + 1:
+            clean_itemset.append(clean_itemset)
 
 # Main Code
 
