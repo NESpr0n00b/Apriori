@@ -88,41 +88,64 @@ def apriori_support(transaction_data, support_count):
     # first layer itemset-frequency , frequent_itemsets have itemset and frequency in list
     itemsets = []
     for category_value in range(len(transaction_data["reference"])):
-        itemsets.append([[category_value], 0])
-    for row in dataset:
-        for item_index in range(len(row)):
-            itemsets[row[item_index]][1] += row[0]
-        total_num_transaction += row[0]
+        itemsets.append([{category_value}, 0])
+    for transaction in dataset:
+        for item_index in range(len(transaction)):
+            itemsets[transaction[item_index]][1] += transaction[0]
+        total_num_transaction += transaction[0]
     frequent_itemsets = [x for x in itemsets if not x[1] / total_num_transaction < support_count]
     all_frequent_itemsets.append(frequent_itemsets)
     # print(frequent_itemsets)
 
     # apriori algorithm
     k = 1
-    while len(frequent_itemsets) > 1:
+    while True:
+        indices_to_be_deleted = []
         # candidate itemsets do not have frequencies
-        generate_candidates(frequent_itemsets, k)
+        frequent_itemsets = generate_candidates(frequent_itemsets, k)
+        # breaks code if no more itemsets can be made
+        if len(frequent_itemsets) == 0:
+            break
+        # for each transaction count them in frequent itemsets
+        for transaction_index in range(len(dataset)):
+            transaction_items = dataset[transaction_index].copy()
+            transaction_items.pop(0) # removes the column that specifies count of that itemset
+            is_counted = False  # checks if transaction is counted
+            for itemset in frequent_itemsets:
+                if itemset[0].issubset(set(transaction_items)):
+                    itemset[1] += dataset[transaction_index][0]
+                    is_counted = True
+            # if transaction is not counted, add it to a list of indices to be deleted after, optimization code
+            if not is_counted:
+                indices_to_be_deleted.append(transaction_index)
+        # prunes the dataset from the indices that do not have the candidate itemsets
+        for indices_index in reversed(range(len(indices_to_be_deleted))):
+            dataset.pop(indices_to_be_deleted[indices_index])
+        # add the itemsets to the final supported itemsets based on minimum support
+        frequent_itemsets = [x for x in frequent_itemsets if not x[1] / total_num_transaction < support_count]
+        all_frequent_itemsets.append(frequent_itemsets)
+        k += 1
 
-    return all_frequent_itemsets
+    return [x for x in all_frequent_itemsets if x]
 
 
 def generate_candidates(itemsets, k):
     """takes a list of itemsets and generates itemsets of size k + 1"""
-
     new_itemsets = []
 
     # create a list of itemsets that are paired
     for i in range(len(itemsets) - 1):
         for j in range(i + 1, len(itemsets)):
-            new_itemsets.append(itemsets[i][0] + itemsets[j][0])
+            new_itemsets.append(itemsets[i][0].union(itemsets[j][0]))
 
-    # remove duplicate elements in each itemset and itemsets that exceed size k + 1
-    new_clean_itemsets = []
+    # keep itemsets that have size k + 1 and assign frequency value of 0
+    frequent_itemsets = []
     for itemset in new_itemsets:
-        clean_itemset = []
-        [clean_itemset.append(x) for x in itemset if x not in clean_itemset]
-        if len(clean_itemset) == k + 1:
-            clean_itemset.append(clean_itemset)
+        if len(itemset) == k + 1 and not ([itemset, 0] in frequent_itemsets):
+            frequent_itemsets.append([itemset, 0])
+
+    return frequent_itemsets
+
 
 # Main Code
 
@@ -138,4 +161,7 @@ processed_transaction_table = category_numerification(transaction_table['data'])
 
 # step 4 and 5: create an array of itemset-frequency
 supported_itemsets = apriori_support(processed_transaction_table, support)
+print(supported_itemsets)
+
+
 
